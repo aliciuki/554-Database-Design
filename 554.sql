@@ -1,18 +1,19 @@
 -- This is the first version that I think might be close to being finished!
 -- We've done all the constraints we could think of, but please give us your feedback in case we've missed something.
--- As mentioned in our discussion page on Canvas, we had to add 2 tables to implement our subtypes properly.
+-- I'll continue on Tuesday, also looking forward to your updates re: normalization and any changes to the ERD.
+--
 --
 -- The commit date is the last upload to git.
 -- This code is to create the database RBSC and the 10 (+6) tables contained in it. 
---
---
---Make sure to start executing the CREATE DATABASE RBSC GO command first, and then execute all the rest together.
+-- As mentioned in our discussion page on Canvas, we had to add 2 tables to implement our subtypes properly.
+
+--This query is commented out because the code won't run with it. Make sure to start with this query separately, and then execute all the rest together.
 --CREATE DATABASE RBSC
 --GO
 
 USE RBSC
 
---This table is needed to make sure that no one accidentally creates a CORRESPONDENCE record that has DAG or OTH as types.
+--This table is needed to make sure that no one accidentally creates a CORRESPONDENCE record that has DAG or OTH as types. 
 --There's a really good explanation on this page: https://www.sqlteam.com/articles/implementing-table-inheritance-in-sql-server
 CREATE TABLE RECORD_TYPE(
 TREC_ID INT NOT NULL,
@@ -21,7 +22,7 @@ PRIMARY KEY (TREC_ID)
 )
 
 --This just adds each type to the table. We need data in this table before creating RECORD and the different subtypes, because they will refer to this table.
-INSERT INTO RECORD_TYPE
+INSERT INTO RECORD_TYPE 
 SELECT 1, 'COR' UNION ALL
 SELECT 2, 'DAG' UNION ALL
 SELECT 3, 'OTH'
@@ -39,7 +40,6 @@ CREATE TABLE RECORD(
   PRIMARY KEY (REC_ID)
 )
 
-
 CREATE TABLE CORRESPONDENCE(
   REC_ID INT,
   --This means that all CORRESPONDENCE tables are automatically created with a constant value of 1 ('COR').
@@ -56,6 +56,7 @@ CREATE TABLE DONOR_AGREEMENT(
   TREC_ID AS 2 PERSISTED,
   DA_RECIP VARCHAR(100),
   DA_WITNESS VARCHAR(100),
+  DA_DONOR VARCHAR(100),
   FOREIGN KEY (REC_ID, TREC_ID) REFERENCES RECORD (REC_ID, TREC_ID),
   PRIMARY KEY (REC_ID)
 )
@@ -79,6 +80,8 @@ CREATE TABLE DONOR(
   PRIMARY KEY (DON_ID)
 )
 
+CREATE INDEX DON_LNAMEX ON DONOR (DON_LNAME)
+
 CREATE TABLE PERSONNEL(
 -- This would be the 7-digit UBC staff ID (see ubccard.ubc.ca/obtaining-a-ubccard/faculty-staff)
   PERS_ID CHAR(7) NOT NULL ,
@@ -91,7 +94,8 @@ CREATE TABLE PERSONNEL(
   PERS_EMAIL VARCHAR(50) CHECK(PERS_EMAIL LIKE '%___@___%.__%'),
   PRIMARY KEY (PERS_ID)
   )
-
+  CREATE INDEX PERS_LNAMEX ON PERSONNEL (PERS_LNAME)
+  CREATE INDEX PERS_ROLEX ON PERSONNEL (PERS_ROLE)
 
 -- This section creates the COLLECTION table.
 -- 'Collection' is a command, so we use brackets.
@@ -104,13 +108,15 @@ CREATE TABLE [COLLECTION](
   COLL_REFCODE VARCHAR(15) NOT NULL,
   PRIMARY KEY (COLL_ID)
 )
+CREATE INDEX COLL_NAMEX ON [COLLECTION] (COLL_NAME)
 
 CREATE TABLE KIND(
   KIND_ID INT NOT NULL IDENTITY,
   KIND_NAME VARCHAR(50),
+  FOREIGN KEY (TRAN_ID) REFERENCES [TRANSACTION],
   PRIMARY KEY(KIND_ID)
 )
---This table is needed to make sure that no one accidentally creates an ACQUISITION transaction that accidentally has ACCR or FUN as types.
+--This table is needed to make sure that no one accidentally creates an ACQUISITION transaction that accidentally has ACCR or FUN as types. 
 --There's a really good explanation on this page: https://www.sqlteam.com/articles/implementing-table-inheritance-in-sql-server
 CREATE TABLE TRANSACTION_TYPE(
 	TTRAN_ID INT NOT NULL,
@@ -139,7 +145,8 @@ CREATE TABLE [TRANSACTION] (
   FOREIGN KEY (PERS_MAIN_ID) REFERENCES PERSONNEL(PERS_ID),
   PRIMARY KEY (TRAN_ID)
   )
-
+  CREATE INDEX TRAN_DATEX ON [TRANSACTION] (TRAN_DATE)
+    
 CREATE TABLE ACQUISITION(
   TRAN_ID INT,
   TTRAN_ID AS 1 PERSISTED,
@@ -167,6 +174,7 @@ CREATE TABLE FUNDS(
   TRAN_ID INT,
   TTRAN_ID AS 2 PERSISTED,
   FUN_VALUE DECIMAL(38,2),
+  FUN_PURPOSE VARCHAR(200),
   KIND_ID INT,
   FOREIGN KEY (TRAN_ID, TTRAN_ID) REFERENCES [TRANSACTION](TRAN_ID, TTRAN_ID),
   FOREIGN KEY (KIND_ID) REFERENCES KIND,
@@ -177,6 +185,7 @@ CREATE TABLE FUNDS(
 CREATE TABLE OTHER_PERSONNEL(
   TRAN_ID INT,
   PERS_ID CHAR(7),
+  OPERS_NOTE VARCHAR(100),
   FOREIGN KEY (TRAN_ID) REFERENCES [TRANSACTION],
   FOREIGN KEY (PERS_ID) REFERENCES PERSONNEL,
   PRIMARY KEY (TRAN_ID, PERS_ID)
@@ -201,3 +210,5 @@ CREATE TABLE NOTE(
   FOREIGN KEY (TRAN_ID) REFERENCES [TRANSACTION],
   PRIMARY KEY (NOTE_ID)
   )
+  CREATE INDEX NOTE_DATEX ON NOTE (NOTE_DATE)
+  CREATE INDEX NOTE_TTLX ON NOTE (NOTE_TTL)
