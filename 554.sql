@@ -13,6 +13,33 @@
 
 USE RBSC
 
+-- This section creates the tables for people in the database, DONOR and PERSONNEL.
+-- I think we should make names fairly long, because of this: https://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/
+CREATE TABLE DONOR(
+  DON_ID INT NOT NULL IDENTITY,
+  DON_LNAME VARCHAR(100),
+  DON_FNAME VARCHAR(100),
+  DON_AFFIL VARCHAR(50),
+  PRIMARY KEY (DON_ID)
+)
+
+CREATE INDEX DON_LNAMEX ON DONOR (DON_LNAME)
+
+CREATE TABLE PERSONNEL(
+-- This would be the 7-digit UBC staff ID (see ubccard.ubc.ca/obtaining-a-ubccard/faculty-staff)
+  PERS_ID CHAR(7) NOT NULL ,
+  PERS_LNAME VARCHAR(100) NOT NULL,
+  PERS_FNAME VARCHAR(100),
+  PERS_ROLE VARCHAR(50),
+-- Phone number is 12 digits, because it would be within Canada. It will default as the real RBSC number, we took it from https://rbsc.library.ubc.ca/contact-form/
+  PERS_PHONE CHAR(12) DEFAULT('604-822-2521'),
+-- Constraint checks that e-mail has proper format (with @ and dot). Taken from: https://social.msdn.microsoft.com/Forums/sqlserver/en-US/4754314a-a076-449c-ac62-e9d0c12ba717/beginner-question-check-constraint-for-email-address?forum=databasedesign
+  PERS_EMAIL VARCHAR(50) CHECK(PERS_EMAIL LIKE '%___@___%.__%'),
+  PRIMARY KEY (PERS_ID)
+  )
+  CREATE INDEX PERS_LNAMEX ON PERSONNEL (PERS_LNAME)
+  CREATE INDEX PERS_ROLEX ON PERSONNEL (PERS_ROLE)
+
 --This table is needed to make sure that no one accidentally creates a CORRESPONDENCE record that has DAG or OTH as types. 
 --There's a really good explanation on this page: https://www.sqlteam.com/articles/implementing-table-inheritance-in-sql-server
 CREATE TABLE RECORD_TYPE(
@@ -56,7 +83,8 @@ CREATE TABLE DONOR_AGREEMENT(
   TREC_ID AS 2 PERSISTED,
   DA_RECIP VARCHAR(100),
   DA_WITNESS VARCHAR(100),
-  DA_DONOR VARCHAR(100),
+  DON_ID INT,
+  FOREIGN KEY (DON_ID) REFERENCES DONOR,
   FOREIGN KEY (REC_ID, TREC_ID) REFERENCES RECORD (REC_ID, TREC_ID),
   PRIMARY KEY (REC_ID)
 )
@@ -69,33 +97,6 @@ CREATE TABLE OTHER(
   FOREIGN KEY (REC_ID, TREC_ID) REFERENCES RECORD (REC_ID, TREC_ID),
   PRIMARY KEY (REC_ID)
 )
-
--- This section creates the tables for people in the database, DONOR and PERSONNEL.
--- I think we should make names fairly long, because of this: https://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/
-CREATE TABLE DONOR(
-  DON_ID INT NOT NULL IDENTITY,
-  DON_LNAME VARCHAR(100),
-  DON_FNAME VARCHAR(100),
-  DON_AFFIL VARCHAR(50),
-  PRIMARY KEY (DON_ID)
-)
-
-CREATE INDEX DON_LNAMEX ON DONOR (DON_LNAME)
-
-CREATE TABLE PERSONNEL(
--- This would be the 7-digit UBC staff ID (see ubccard.ubc.ca/obtaining-a-ubccard/faculty-staff)
-  PERS_ID CHAR(7) NOT NULL ,
-  PERS_LNAME VARCHAR(100) NOT NULL,
-  PERS_FNAME VARCHAR(100),
-  PERS_ROLE VARCHAR(50),
--- Phone number is 12 digits, because it would be within Canada. It will default as the real RBSC number, we took it from https://rbsc.library.ubc.ca/contact-form/
-  PERS_PHONE CHAR(12) DEFAULT('604-822-2521'),
--- Constraint checks that e-mail has proper format (with @ and dot). Taken from: https://social.msdn.microsoft.com/Forums/sqlserver/en-US/4754314a-a076-449c-ac62-e9d0c12ba717/beginner-question-check-constraint-for-email-address?forum=databasedesign
-  PERS_EMAIL VARCHAR(50) CHECK(PERS_EMAIL LIKE '%___@___%.__%'),
-  PRIMARY KEY (PERS_ID)
-  )
-  CREATE INDEX PERS_LNAMEX ON PERSONNEL (PERS_LNAME)
-  CREATE INDEX PERS_ROLEX ON PERSONNEL (PERS_ROLE)
 
 -- This section creates the COLLECTION table.
 -- 'Collection' is a command, so we use brackets.
@@ -110,12 +111,6 @@ CREATE TABLE [COLLECTION](
 )
 CREATE INDEX COLL_NAMEX ON [COLLECTION] (COLL_NAME)
 
-CREATE TABLE KIND(
-  KIND_ID INT NOT NULL IDENTITY,
-  KIND_NAME VARCHAR(50),
-  FOREIGN KEY (TRAN_ID) REFERENCES [TRANSACTION],
-  PRIMARY KEY(KIND_ID)
-)
 --This table is needed to make sure that no one accidentally creates an ACQUISITION transaction that accidentally has ACCR or FUN as types. 
 --There's a really good explanation on this page: https://www.sqlteam.com/articles/implementing-table-inheritance-in-sql-server
 CREATE TABLE TRANSACTION_TYPE(
@@ -138,14 +133,22 @@ CREATE TABLE [TRANSACTION] (
   COLL_ID INT,
   REC_ID INT,
   PERS_MAIN_ID CHAR(7) NOT NULL,
-  CONSTRAINT TTRAN UNIQUE (TRAN_ID, TTRAN_ID),
   FOREIGN KEY (DON_ID) REFERENCES DONOR,
   FOREIGN KEY (COLL_ID) REFERENCES [COLLECTION],
   FOREIGN KEY (REC_ID) REFERENCES RECORD,
   FOREIGN KEY (PERS_MAIN_ID) REFERENCES PERSONNEL(PERS_ID),
   PRIMARY KEY (TRAN_ID)
+  CONSTRAINT TTRAN UNIQUE (TRAN_ID, TTRAN_ID),
   )
   CREATE INDEX TRAN_DATEX ON [TRANSACTION] (TRAN_DATE)
+
+CREATE TABLE KIND(
+  KIND_ID INT NOT NULL IDENTITY,
+  KIND_NAME VARCHAR(50),
+  TRAN_ID INT,
+  FOREIGN KEY (TRAN_ID) REFERENCES [TRANSACTION],
+  PRIMARY KEY(KIND_ID)
+)
     
 CREATE TABLE ACQUISITION(
   TRAN_ID INT,
@@ -166,7 +169,6 @@ CREATE TABLE ADDITION(
   KIND_ID INT,
   FOREIGN KEY (TRAN_ID, TTRAN_ID) REFERENCES [TRANSACTION](TRAN_ID, TTRAN_ID),
   FOREIGN KEY (KIND_ID) REFERENCES KIND,
-  FOREIGN KEY (TRAN_ID) REFERENCES [TRANSACTION],
   PRIMARY KEY (TRAN_ID)
 )
 
@@ -175,10 +177,7 @@ CREATE TABLE FUNDS(
   TTRAN_ID AS 2 PERSISTED,
   FUN_VALUE DECIMAL(38,2),
   FUN_PURPOSE VARCHAR(200),
-  KIND_ID INT,
   FOREIGN KEY (TRAN_ID, TTRAN_ID) REFERENCES [TRANSACTION](TRAN_ID, TTRAN_ID),
-  FOREIGN KEY (KIND_ID) REFERENCES KIND,
-  FOREIGN KEY (TRAN_ID) REFERENCES [TRANSACTION],
   PRIMARY KEY (TRAN_ID)
 )
 
