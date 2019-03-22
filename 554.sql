@@ -1,8 +1,3 @@
--- This is the first version that I think might be close to being finished!
--- We've done all the constraints we could think of, but please give us your feedback in case we've missed something.
--- I'll continue on Tuesday, also looking forward to your updates re: normalization and any changes to the ERD.
---
---
 -- The commit date is the last upload to git.
 -- This code is to create the database RBSC and the 10 (+6) tables contained in it. 
 -- As mentioned in our discussion page on Canvas, we had to add 2 tables to implement our subtypes properly.
@@ -137,9 +132,9 @@ CREATE TABLE [TRANSACTION] (
   FOREIGN KEY (COLL_ID) REFERENCES [COLLECTION],
   FOREIGN KEY (REC_ID) REFERENCES RECORD,
   FOREIGN KEY (PERS_MAIN_ID) REFERENCES PERSONNEL(PERS_ID),
-  PRIMARY KEY (TRAN_ID)
   CONSTRAINT TTRAN UNIQUE (TRAN_ID, TTRAN_ID),
-  )
+  PRIMARY KEY (TRAN_ID),
+ )
   CREATE INDEX TRAN_DATEX ON [TRANSACTION] (TRAN_DATE)
 
 CREATE TABLE KIND(
@@ -174,7 +169,7 @@ CREATE TABLE ADDITION(
 
 CREATE TABLE FUNDS(
   TRAN_ID INT,
-  TTRAN_ID AS 2 PERSISTED,
+  TTRAN_ID AS 3 PERSISTED,
   FUN_VALUE DECIMAL(38,2),
   FUN_PURPOSE VARCHAR(200),
   FOREIGN KEY (TRAN_ID, TTRAN_ID) REFERENCES [TRANSACTION](TRAN_ID, TTRAN_ID),
